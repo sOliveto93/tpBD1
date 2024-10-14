@@ -1,65 +1,254 @@
-USE mydb;
+-- MySQL Workbench Forward Engineering
 
--- DROP SCHEMA IF exists tp_basededatos1;
-/*
--- Ejemplo de stored procedure para un ALTA
-DELIMITER //
-CREATE PROCEDURE altaConcesionaria(
-    IN p_id_concesionaria INT,
-    IN p_nombre VARCHAR(100),
-    IN p_terminal_automotriz_Id_terminal INT,  -- Cambiado a INT
-    IN p_direccion VARCHAR(150),
+SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
-    OUT nResultado INT,
-    OUT cMensaje VARCHAR(256)
-)
-BEGIN
-    -- Inicializar el resultado y mensaje
-    SET nResultado = 0;
-    SET cMensaje = '';
+-- -----------------------------------------------------
+-- Schema mydb
+-- -----------------------------------------------------
 
-    -- Verificar si el concesionario ya existe
-    IF EXISTS (SELECT * FROM concesionaria WHERE id_concesionaria = p_id_concesionaria) THEN
-        SET nResultado = -1;
-        SET cMensaje = 'El concesionario ya existe con esa clave primaria.';
-    ELSE
-        -- Insertar nuevo concesionario
-        INSERT INTO concesionaria (id_concesionaria, nombre, terminal_automotriz_Id_terminal, direccion)
-        VALUES (p_id_concesionaria, p_nombre, p_terminal_automotriz_Id_terminal, p_direccion);
-        
-        -- Confirmar la inserción exitosa
-        SET nResultado = 0;
-        SET cMensaje = 'Concesionario insertado con éxito.';
-    END IF;
+-- -----------------------------------------------------
+-- Schema mydb
+-- -----------------------------------------------------
+CREATE SCHEMA IF NOT EXISTS `mydb` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci ;
+USE `mydb` ;
 
-END//
-
--- Ejemplo de invocacion
-CALL altaConcesionaria(10, 'AutoMovil S.A', 1, 'Av. Siempre Viva 123, Ciudad A', @nResultado, @cMensaje);
-SELECT @nResultado, @cMensaje;
-
-*/
+-- -----------------------------------------------------
+-- Table `mydb`.`linea_montaje`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`linea_montaje` (
+  `id_linea_montaje` INT NOT NULL AUTO_INCREMENT,
+  `fecha_ingreso` DATE NULL DEFAULT NULL,
+  `fecha_egreso` DATE NULL DEFAULT NULL,
+  `capacidad_productiva` FLOAT NULL DEFAULT NULL,
+  PRIMARY KEY (`id_linea_montaje`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 5
+DEFAULT CHARACTER SET = utf8mb3;
 
 
--- *******************************
--- Creacion de prodecimientos ABM
--- *******************************
-/*
-- ERRORES: 
-0 = Ejectuado correctamente
--1 = PK Actualmente en uso
--2 = PK NO encontrada (Tabla no existe?)
--3 = Una entidad depende de la entidad que queres borrar
-*/
--- *******************************
--- ALTAS:
--- *******************************
+-- -----------------------------------------------------
+-- Table `mydb`.`modelo`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`modelo` (
+  `id_modelo` INT NOT NULL AUTO_INCREMENT,
+  `anio` DATE NOT NULL,
+  `nombre` VARCHAR(45) NOT NULL,
+  `puerta` INT NOT NULL,
+  `rueda` INT NOT NULL,
+  `litro_pintura` FLOAT NOT NULL,
+  `metro_cable` FLOAT NOT NULL,
+  `lampara` INT NOT NULL,
+  PRIMARY KEY (`id_modelo`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 12
+DEFAULT CHARACTER SET = utf8mb3;
 
--- CONCESIONARIA
-DROP PROCEDURE IF EXISTS altaConcesionaria;
 
-DELIMITER //
-CREATE PROCEDURE altaConcesionaria(
+-- -----------------------------------------------------
+-- Table `mydb`.`concesionaria`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`concesionaria` (
+  `id_concesionaria` INT NOT NULL AUTO_INCREMENT,
+  `nombre` VARCHAR(45) NOT NULL,
+  PRIMARY KEY (`id_concesionaria`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 4
+DEFAULT CHARACTER SET = utf8mb3;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`pedido`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`pedido` (
+  `id_pedido` INT NOT NULL AUTO_INCREMENT,
+  `concesionaria_id_concesionaria` INT NOT NULL,
+  `fecha` DATETIME(3) NOT NULL,
+  PRIMARY KEY (`id_pedido`),
+  INDEX `fk_pedido_concesionaria1_idx` (`concesionaria_id_concesionaria` ASC) VISIBLE,
+  CONSTRAINT `fk_pedido_concesionaria1`
+    FOREIGN KEY (`concesionaria_id_concesionaria`)
+    REFERENCES `mydb`.`concesionaria` (`id_concesionaria`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 4
+DEFAULT CHARACTER SET = utf8mb3;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`pedido_has_modelo`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`pedido_has_modelo` (
+  `pedido_id_pedido` INT NOT NULL,
+  `modelo_id_modelo` INT NOT NULL,
+  `cantidad` INT NOT NULL,
+  PRIMARY KEY (`pedido_id_pedido`, `modelo_id_modelo`),
+  INDEX `fk_pedido_has_modelo_modelo1_idx` (`modelo_id_modelo` ASC) VISIBLE,
+  INDEX `fk_pedido_has_modelo_pedido1_idx` (`pedido_id_pedido` ASC) VISIBLE,
+  CONSTRAINT `fk_pedido_has_modelo_modelo1`
+    FOREIGN KEY (`modelo_id_modelo`)
+    REFERENCES `mydb`.`modelo` (`id_modelo`),
+  CONSTRAINT `fk_pedido_has_modelo_pedido1`
+    FOREIGN KEY (`pedido_id_pedido`)
+    REFERENCES `mydb`.`pedido` (`id_pedido`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb3;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`automovil`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`automovil` (
+  `chasis` VARCHAR(45) NOT NULL,
+  `modelo_id_modelo` INT NOT NULL,
+  `linea_montaje_id_linea_montaje` INT NOT NULL,
+  `automovilcol` VARCHAR(45) NULL DEFAULT NULL,
+  `pedido_has_modelo_pedido_id_pedido` INT NOT NULL,
+  `pedido_has_modelo_modelo_id_modelo` INT NOT NULL,
+  PRIMARY KEY (`chasis`, `pedido_has_modelo_pedido_id_pedido`, `pedido_has_modelo_modelo_id_modelo`),
+  INDEX `fk_automovil_modelo1_idx` (`modelo_id_modelo` ASC) VISIBLE,
+  INDEX `fk_automovil_linea_montaje1_idx` (`linea_montaje_id_linea_montaje` ASC) VISIBLE,
+  INDEX `fk_automovil_pedido_has_modelo1_idx` (`pedido_has_modelo_pedido_id_pedido` ASC, `pedido_has_modelo_modelo_id_modelo` ASC) VISIBLE,
+  CONSTRAINT `fk_automovil_linea_montaje1`
+    FOREIGN KEY (`linea_montaje_id_linea_montaje`)
+    REFERENCES `mydb`.`linea_montaje` (`id_linea_montaje`),
+  CONSTRAINT `fk_automovil_modelo1`
+    FOREIGN KEY (`modelo_id_modelo`)
+    REFERENCES `mydb`.`modelo` (`id_modelo`),
+  CONSTRAINT `fk_automovil_pedido_has_modelo1`
+    FOREIGN KEY (`pedido_has_modelo_pedido_id_pedido` , `pedido_has_modelo_modelo_id_modelo`)
+    REFERENCES `mydb`.`pedido_has_modelo` (`pedido_id_pedido` , `modelo_id_modelo`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb3;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`estacion_trabajo`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`estacion_trabajo` (
+  `id_estacion_trabajo` INT NOT NULL AUTO_INCREMENT,
+  `linea_montaje_id_linea_montaje` INT NOT NULL,
+  `fecha_ingreso` DATE NULL DEFAULT NULL,
+  `fecha_egreso` DATE NULL DEFAULT NULL,
+  `tarea` VARCHAR(45) NULL DEFAULT NULL,
+  `orden` INT NULL DEFAULT NULL,
+  PRIMARY KEY (`id_estacion_trabajo`),
+  INDEX `fk_estacion_trabajo_linea_montaje1_idx` (`linea_montaje_id_linea_montaje` ASC) VISIBLE,
+  CONSTRAINT `fk_estacion_trabajo_linea_montaje1`
+    FOREIGN KEY (`linea_montaje_id_linea_montaje`)
+    REFERENCES `mydb`.`linea_montaje` (`id_linea_montaje`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 25
+DEFAULT CHARACTER SET = utf8mb3;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`automovil_has_estacion_trabajo`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`automovil_has_estacion_trabajo` (
+  `automovil_chasis` VARCHAR(45) NOT NULL,
+  `estacion_trabajo_id_estacion_trabajo` INT NOT NULL,
+  `fecha_entrada` DATETIME NULL DEFAULT NULL,
+  `fecha_salida` DATETIME NULL DEFAULT NULL,
+  `activo` TINYINT NULL DEFAULT NULL,
+  PRIMARY KEY (`automovil_chasis`, `estacion_trabajo_id_estacion_trabajo`),
+  INDEX `fk_automovil_has_estacion_trabajo_estacion_trabajo1_idx` (`estacion_trabajo_id_estacion_trabajo` ASC) VISIBLE,
+  INDEX `fk_automovil_has_estacion_trabajo_automovil1_idx` (`automovil_chasis` ASC) VISIBLE,
+  CONSTRAINT `fk_automovil_has_estacion_trabajo_automovil1`
+    FOREIGN KEY (`automovil_chasis`)
+    REFERENCES `mydb`.`automovil` (`chasis`),
+  CONSTRAINT `fk_automovil_has_estacion_trabajo_estacion_trabajo1`
+    FOREIGN KEY (`estacion_trabajo_id_estacion_trabajo`)
+    REFERENCES `mydb`.`estacion_trabajo` (`id_estacion_trabajo`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb3;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`debug_log`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`debug_log` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `mensaje` VARCHAR(255) NULL DEFAULT NULL,
+  `fecha` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 2
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_0900_ai_ci;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`insumo`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`insumo` (
+  `id_insumo` INT NOT NULL AUTO_INCREMENT,
+  `nombre` VARCHAR(45) NOT NULL,
+  PRIMARY KEY (`id_insumo`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 2
+DEFAULT CHARACTER SET = utf8mb3;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`insumo_has_estacion_trabajo`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`insumo_has_estacion_trabajo` (
+  `insumo_id_insumo` INT NOT NULL,
+  `estacion_trabajo_id_estacion_trabajo` INT NOT NULL,
+  PRIMARY KEY (`insumo_id_insumo`, `estacion_trabajo_id_estacion_trabajo`),
+  INDEX `fk_insumo_has_estacion_trabajo_estacion_trabajo1_idx` (`estacion_trabajo_id_estacion_trabajo` ASC) VISIBLE,
+  INDEX `fk_insumo_has_estacion_trabajo_insumo1_idx` (`insumo_id_insumo` ASC) VISIBLE,
+  CONSTRAINT `fk_insumo_has_estacion_trabajo_estacion_trabajo1`
+    FOREIGN KEY (`estacion_trabajo_id_estacion_trabajo`)
+    REFERENCES `mydb`.`estacion_trabajo` (`id_estacion_trabajo`),
+  CONSTRAINT `fk_insumo_has_estacion_trabajo_insumo1`
+    FOREIGN KEY (`insumo_id_insumo`)
+    REFERENCES `mydb`.`insumo` (`id_insumo`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb3;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`proveedor`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`proveedor` (
+  `id_proveedor` INT NOT NULL AUTO_INCREMENT,
+  `nombre` VARCHAR(45) NOT NULL,
+  PRIMARY KEY (`id_proveedor`))
+ENGINE = InnoDB
+AUTO_INCREMENT = 2
+DEFAULT CHARACTER SET = utf8mb3;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`proveedor_has_insumo`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`proveedor_has_insumo` (
+  `proveedor_id_proveedor` INT NOT NULL,
+  `insumo_id_insumo` INT NOT NULL,
+  `precio` FLOAT NULL DEFAULT NULL,
+  PRIMARY KEY (`proveedor_id_proveedor`, `insumo_id_insumo`),
+  INDEX `fk_proveedor_has_insumo_insumo1_idx` (`insumo_id_insumo` ASC) VISIBLE,
+  INDEX `fk_proveedor_has_insumo_proveedor1_idx` (`proveedor_id_proveedor` ASC) VISIBLE,
+  CONSTRAINT `fk_proveedor_has_insumo_insumo1`
+    FOREIGN KEY (`insumo_id_insumo`)
+    REFERENCES `mydb`.`insumo` (`id_insumo`),
+  CONSTRAINT `fk_proveedor_has_insumo_proveedor1`
+    FOREIGN KEY (`proveedor_id_proveedor`)
+    REFERENCES `mydb`.`proveedor` (`id_proveedor`))
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb3;
+
+USE `mydb` ;
+
+-- -----------------------------------------------------
+-- procedure altaConcesionaria
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `altaConcesionaria`(
     IN p_id_concesionaria INT,
     IN p_nombre VARCHAR(45),
     OUT nResultado INT,
@@ -79,18 +268,54 @@ BEGIN
         SET nResultado = 0;
         SET cMensaje = 'Alta exitosa';
     END IF;
-END 
-// DELIMITER ;
+END$$
 
+DELIMITER ;
 
--- PEDIDO
-DROP PROCEDURE IF EXISTS altaPedido;
-DELIMITER //
-CREATE PROCEDURE altaPedido(
+-- -----------------------------------------------------
+-- procedure altaInsumo
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `altaInsumo`(
+	IN p_id_insumo int,
+    IN p_nombre varchar(45),
+     OUT nResultado INT,
+    OUT cMensaje VARCHAR(256)
+)
+BEGIN
+    
+		SET nResultado=0;
+		SET cMensaje='';
+    
+      -- Verificar si ya existe el pedido con esa PK
+		IF EXISTS (SELECT id_insumo FROM insumo WHERE id_insumo = p_id_insumo) THEN
+			SET nResultado = -1;
+			SET cMensaje = 'Error: PK actualmente en uso';
+		ELSE
+			INSERT INTO insumo (id_insumo, nombre) 
+			VALUES (p_id_insumo,p_nombre);
+			SET nResultado = 0;
+			SET cMensaje = 'Alta exitosa';
+    
+		END IF;
+    END$$
+
+DELIMITER ;
+
+-- -----------------------------------------------------
+-- procedure altaPedido
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `altaPedido`(
     IN p_id_pedido INT,
     IN p_fecha DATETIME,
     IN p_concesionaria_id_concesionaria INT,
     IN p_modelo_id_modelo INT,
+    IN p_cantidad INT,
     OUT nResultado INT,
     OUT cMensaje VARCHAR(256)
 )
@@ -117,58 +342,30 @@ BEGIN
         INSERT INTO pedido (id_pedido, fecha, concesionaria_id_concesionaria) 
         VALUES (p_id_pedido, p_fecha, p_concesionaria_id_concesionaria);
 		-- Insertar en el detalle (pedido_has_modelo)
-        INSERT INTO pedido_has_modelo (modelo_id_modelo, pedido_id_pedido) 
-        VALUES (p_modelo_id_modelo, p_id_pedido);
+        INSERT INTO pedido_has_modelo (modelo_id_modelo, pedido_id_pedido,cantidad) 
+        VALUES (p_modelo_id_modelo, p_id_pedido,p_cantidad);
         
         SET nResultado = 0;
         SET cMensaje = 'Alta exitosa';
 
     END IF;
-END 
-// DELIMITER ;
+END$$
 
+DELIMITER ;
 
--- INSUMO
+-- -----------------------------------------------------
+-- procedure altaProveedor
+-- -----------------------------------------------------
 
-DROP PROCEDURE IF EXISTS altaInsumo;
- DELIMITER //
-CREATE PROCEDURE altaInsumo(
-	IN p_id_insumo int,
-    IN p_nombre varchar(45),
-     OUT nResultado INT,
-    OUT cMensaje VARCHAR(256)
-)
-	BEGIN
-    
-		SET nResultado=0;
-		SET cMensaje='';
-    
-      -- Verificar si ya existe el pedido con esa PK
-		IF EXISTS (SELECT id_insumo FROM insumo WHERE id_insumo = p_id_insumo) THEN
-			SET nResultado = -1;
-			SET cMensaje = 'Error: PK actualmente en uso';
-		ELSE
-			INSERT INTO insumo (id_insumo, nombre) 
-			VALUES (p_id_insumo,p_nombre);
-			SET nResultado = 0;
-			SET cMensaje = 'Alta exitosa';
-    
-		END IF;
-    END
-
-// DELIMITER ;
-
--- proveedor
-
-DROP PROCEDURE IF EXISTS altaProveedor;
- DELIMITER //
-CREATE PROCEDURE altaProveedor(
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `altaProveedor`(
 	IN p_id_proveedor int,
     IN p_nombre varchar(45),
      OUT nResultado INT,
     OUT cMensaje VARCHAR(256)
 )
-	BEGIN
+BEGIN
     
 		SET nResultado=0;
 		SET cMensaje='';
@@ -184,14 +381,17 @@ CREATE PROCEDURE altaProveedor(
 			SET cMensaje = 'Alta exitosa';
     
 		END IF;
-    END
+    END$$
 
-// DELIMITER ;
+DELIMITER ;
 
--- PROVEEDOR_HAS_INSUMO
-DROP PROCEDURE IF EXISTS altaProveedor_has_insumo;
-DELIMITER //
-CREATE PROCEDURE altaProveedor_has_insumo(
+-- -----------------------------------------------------
+-- procedure altaProveedor_has_insumo
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `altaProveedor_has_insumo`(
     IN p_proveedor_id_proveedor INT,
     IN p_insumo_id_insumo INT,
     OUT nResultado INT,
@@ -216,20 +416,17 @@ BEGIN
         SET nResultado = 0;
         SET cMensaje = 'Alta exitosa';
     END IF;
-END 
-// DELIMITER ;
+END$$
 
+DELIMITER ;
 
+-- -----------------------------------------------------
+-- procedure bajaConcesionaria
+-- -----------------------------------------------------
 
--- *******************************
--- BAJAS:
--- *******************************
-
--- CONCESIONARIA
-
-DROP PROCEDURE IF EXISTS bajaConcesionaria;
-DELIMITER //
-CREATE PROCEDURE bajaConcesionaria (
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `bajaConcesionaria`(
 	IN p_id_concesionaria INT,
     OUT nResultado INT,
     OUT cMensaje VARCHAR(256)
@@ -250,15 +447,45 @@ BEGIN
         SET cMensaje = 'Baja exitosa';
 	END IF;
     
-END
-// DELIMITER ;
+END$$
 
+DELIMITER ;
 
--- PEDIDO
-DROP PROCEDURE IF EXISTS bajaPedido;
+-- -----------------------------------------------------
+-- procedure bajaInsumo
+-- -----------------------------------------------------
 
-DELIMITER //
-CREATE PROCEDURE bajaPedido(
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `bajaInsumo`(
+  IN p_id_insumo INT,
+  OUT nResultado INT,
+  OUT cMensaje VARCHAR(256)
+)
+BEGIN
+	SET nResultado = 0;
+    SET cMensaje = '';
+
+    -- Verificar si el pedido existe
+    IF NOT EXISTS (SELECT id_insumo FROM insumo WHERE id_insumo = p_id_insumo) THEN
+        SET nResultado = -2;
+        SET cMensaje = 'Error: No existe un insumo con esa PK';
+    ELSE
+        DELETE FROM insumo WHERE id_insumo = p_id_insumo;
+        SET nResultado = 0;
+        SET cMensaje = 'Baja exitosa';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- -----------------------------------------------------
+-- procedure bajaPedido
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `bajaPedido`(
     IN p_id_pedido INT,
     OUT nResultado INT,
     OUT cMensaje VARCHAR(256)
@@ -277,39 +504,17 @@ BEGIN
         SET nResultado = 0;
         SET cMensaje = 'Baja exitosa';
     END IF;
-END 
-// DELIMITER ;
+END$$
 
--- insumo
-DROP PROCEDURE IF EXISTS bajaInsumo;
-DELIMITER //
+DELIMITER ;
 
-CREATE PROCEDURE bajaInsumo(
-  IN p_id_insumo INT,
-  OUT nResultado INT,
-  OUT cMensaje VARCHAR(256)
-)
-BEGIN
-	SET nResultado = 0;
-    SET cMensaje = '';
+-- -----------------------------------------------------
+-- procedure bajaProveedor
+-- -----------------------------------------------------
 
-    -- Verificar si el pedido existe
-    IF NOT EXISTS (SELECT id_insumo FROM insumo WHERE id_insumo = p_id_insumo) THEN
-        SET nResultado = -2;
-        SET cMensaje = 'Error: No existe un insumo con esa PK';
-    ELSE
-        DELETE FROM insumo WHERE id_insumo = p_id_insumo;
-        SET nResultado = 0;
-        SET cMensaje = 'Baja exitosa';
-    END IF;
-END
-// DELIMITER ;
-
--- insumo
-DROP PROCEDURE IF EXISTS bajaProveedor;
-DELIMITER //
-
-CREATE PROCEDURE bajaProveedor(
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `bajaProveedor`(
   IN p_id_proveedor INT,
   OUT nResultado INT,
   OUT cMensaje VARCHAR(256)
@@ -327,15 +532,17 @@ BEGIN
         SET nResultado = 0;
         SET cMensaje = 'Baja exitosa';
     END IF;
-END
-// DELIMITER ;
+END$$
 
+DELIMITER ;
 
--- PROVEEDOR_HAS_INSUMO
-DROP PROCEDURE IF EXISTS bajaProveedor_has_insumo;
+-- -----------------------------------------------------
+-- procedure bajaProveedor_has_insumo
+-- -----------------------------------------------------
 
-DELIMITER //
-CREATE PROCEDURE bajaProveedor_has_insumo(
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `bajaProveedor_has_insumo`(
     IN p_proveedor_id_proveedor INT,
     IN p_insumo_id_insumo INT,
     OUT nResultado INT,
@@ -359,18 +566,138 @@ ELSEIF NOT EXISTS (SELECT insumo_id_insumo FROM proveedor_has_insumo WHERE insum
         SET nResultado = 0;
         SET cMensaje = 'Baja exitosa';
     END IF;
-END 
-// DELIMITER ;
+END$$
 
+DELIMITER ;
 
--- *******************************
--- MODIFICACIONES:
--- *******************************
+-- -----------------------------------------------------
+-- procedure creatEstacionesTrabajo
+-- -----------------------------------------------------
 
-DROP PROCEDURE IF EXISTS modificarConcesionaria;
--- CONCESIONARIA
-DELIMITER //
-CREATE PROCEDURE modificarConcesionaria (
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `creatEstacionesTrabajo`(
+	IN lineaMontaje_id INT,
+    OUT nResultado INT,
+    OUT cMensaje VARCHAR(256)
+
+)
+pro:begin
+	declare cont int default 0;
+    
+    set nResultado=0;
+    set cMensaje="";
+-- comprobamos que la linea montaje id existe y 
+-- que no tenga estaciones de trabajo creadas
+ IF NOT EXISTS (SELECT id_linea_montaje FROM linea_montaje WHERE id_linea_montaje = lineaMontaje_id) THEN
+        SET nResultado = -2;
+        SET cMensaje = 'Error: No existe linea de montaje con ese id';
+        LEAVE pro;
+ END IF;
+
+SELECT count(*) into cont from estacion_trabajo where linea_montaje_id_linea_montaje = lineaMontaje_id;
+ if(cont>0) then
+		SET nResultado = -2;
+		SET cMensaje = 'Error: ya existen estaciones de trabajo creadas para este linea de montaje';
+       
+	LEAVE pro;
+ END IF;
+    insert into estacion_trabajo(linea_montaje_id_linea_montaje, fecha_ingreso, fecha_egreso, tarea, orden)
+    values(lineaMontaje_id,null,null,"ensamblado de chapa",1);
+    insert into estacion_trabajo(linea_montaje_id_linea_montaje, fecha_ingreso, fecha_egreso, tarea, orden)
+    values(lineaMontaje_id,null,null,"mecanica de motor",2);
+    insert into estacion_trabajo(linea_montaje_id_linea_montaje, fecha_ingreso, fecha_egreso, tarea, orden)
+    values(lineaMontaje_id,null,null,"mecanica de rodaje",3);
+    insert into estacion_trabajo(linea_montaje_id_linea_montaje, fecha_ingreso, fecha_egreso, tarea, orden)
+    values(lineaMontaje_id,null,null,"pintura",4);
+    insert into estacion_trabajo(linea_montaje_id_linea_montaje, fecha_ingreso, fecha_egreso, tarea, orden)
+    values(lineaMontaje_id,null,null,"electricidad",5);
+    insert into estacion_trabajo(linea_montaje_id_linea_montaje, fecha_ingreso, fecha_egreso, tarea, orden)
+    values(lineaMontaje_id,null,null,"prueba",6);
+	
+-- Mensaje de éxito
+    SET nResultado = 0;  -- Éxito
+    SET cMensaje = 'Estaciones de trabajo creadas exitosamente';
+END pro$$
+
+DELIMITER ;
+
+-- -----------------------------------------------------
+-- procedure generarAutoPorPedido
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `generarAutoPorPedido`(
+    IN pedido_id INT, 
+    OUT nResultado INT, 
+    OUT cMensaje VARCHAR(256)
+)
+BEGIN
+    DECLARE modelo_id INT;
+    DECLARE cant INT default 0;
+    DECLARE cont INT DEFAULT 0;
+    DECLARE done INT DEFAULT 0;
+    DECLARE nombre VARCHAR(45);
+    DECLARE chasisA VARCHAR(20);
+    DECLARE chasis_exists INT;
+    
+   
+	SET nResultado = 0;
+    SET cMensaje = '';
+	
+    -- Verificar si el pedido existe
+    IF NOT EXISTS (SELECT id_pedido FROM pedido WHERE id_pedido = pedido_id) THEN
+        SET nResultado = -2;
+        SET cMensaje = 'Error: No existe pedido con ese id';
+	
+    ELSEIF EXISTS (SELECT pedido_has_modelo_pedido_id_pedido FROM automovil WHERE pedido_has_modelo_pedido_id_pedido = pedido_id) THEN
+        SET nResultado = -1;
+        SET cMensaje = 'Error: Pedido ya esta en la tabla vehiculo';
+
+    ELSE
+		-- obtenemos la cantidad de autos en el pedidoy el id del modelo
+        select modelo_id_modelo,cantidad into modelo_id,cant from pedido_has_modelo where pedido_id_pedido=pedido_id;
+        -- Obtener el nombre del modelo
+            SELECT nombre INTO nombre FROM modelo WHERE id_modelo = modelo_id;
+
+        
+	while cont < cant do
+		 SET chasisA = CONCAT(
+                    UPPER(CHAR(FLOOR(65 + RAND() * 26))),  -- letra aleatoria
+                    UPPER(CHAR(FLOOR(65 + RAND() * 26))),
+                    UPPER(CHAR(FLOOR(65 + RAND() * 26))),
+                    FLOOR(1000 + RAND() * 9000)  -- números aleatorios
+                );
+
+                -- Verificar si el chasis ya existe
+                SELECT COUNT(*) INTO chasis_exists 
+                FROM automovil 
+                WHERE chasis = chasisA;
+
+                -- Si el chasis no existe, insertar y Y SUMAR CONT
+                IF chasis_exists = 0 THEN
+                    -- Insertar en la tabla automovil
+                    INSERT INTO automovil (chasis, modelo_id_modelo, linea_montaje_id_linea_montaje, automovilcol, pedido_has_modelo_pedido_id_pedido, pedido_has_modelo_modelo_id_modelo)
+                    VALUES (chasisA, modelo_id, 1, nombre, pedido_id, modelo_id);
+                    -- TODO CORRECTO SETEAMOS EL CONTADOR +1 Y LOS MENSAJES
+                    SET cont=cont+1;
+                    SET nResultado = 0;  -- Éxito
+                    SET cMensaje = 'Alta exitosa';
+                END IF;
+	END while;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- -----------------------------------------------------
+-- procedure modificarConcesionaria
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `modificarConcesionaria`(
 	IN p_id_concesionaria INT,
     IN p_nombre VARCHAR(45),
     OUT nResultado INT,
@@ -388,15 +715,47 @@ BEGIN
 		SET nResultado = 0;
         SET cMensaje = 'Modificacion exitosa';
 	END IF;
-END 
-// DELIMITER ;
+END$$
 
+DELIMITER ;
 
--- PEDIDO
--- CON FECHA + CONCESIONARIA
-DROP PROCEDURE IF EXISTS modificarPedidoFecha;
-DELIMITER //
-CREATE PROCEDURE modificarPedidoFecha(
+-- -----------------------------------------------------
+-- procedure modificarInsumo
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `modificarInsumo`(
+    IN p_id_insumo INT,
+    IN p_nombre varchar(45),
+    OUT nResultado INT,
+    OUT cMensaje VARCHAR(256)
+)
+BEGIN
+    SET nResultado = 0;
+    SET cMensaje = '';
+
+    -- Verificar si el pedido existe
+    IF NOT EXISTS (SELECT id_insumo FROM insumo WHERE id_insumo = p_id_insumo) THEN
+        SET nResultado = -2;
+        SET cMensaje = 'Error: No existe un insumo con esa PK';
+    ELSE
+        UPDATE insumo SET nombre = p_nombre
+        WHERE id_insumo = p_id_insumo;
+        SET nResultado = 0;
+        SET cMensaje = 'Modificacion exitosa';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- -----------------------------------------------------
+-- procedure modificarPedidoFecha
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `modificarPedidoFecha`(
     IN p_id_pedido INT,
     IN p_nueva_fecha_de_orden DATETIME,
     IN p_nueva_concesionaria_id_concesionaria INT,
@@ -431,40 +790,17 @@ BEGIN
         SET nResultado = 0;
         SET cMensaje = 'Modificacion exitosa';
     END IF;
-END 
-// DELIMITER ;
+END$$
 
+DELIMITER ;
 
--- insumo
-DROP PROCEDURE IF EXISTS modificarInsumo;
-DELIMITER //
-CREATE PROCEDURE modificarInsumo(
-    IN p_id_insumo INT,
-    IN p_nombre varchar(45),
-    OUT nResultado INT,
-    OUT cMensaje VARCHAR(256)
-)
-BEGIN
-    SET nResultado = 0;
-    SET cMensaje = '';
+-- -----------------------------------------------------
+-- procedure modificarProveedor
+-- -----------------------------------------------------
 
-    -- Verificar si el pedido existe
-    IF NOT EXISTS (SELECT id_insumo FROM insumo WHERE id_insumo = p_id_insumo) THEN
-        SET nResultado = -2;
-        SET cMensaje = 'Error: No existe un insumo con esa PK';
-    ELSE
-        UPDATE insumo SET nombre = p_nombre
-        WHERE id_insumo = p_id_insumo;
-        SET nResultado = 0;
-        SET cMensaje = 'Modificacion exitosa';
-    END IF;
-END 
-// DELIMITER ;
-
--- PROVEEDOR
-DROP PROCEDURE IF EXISTS modificarProveedor;
-DELIMITER //
-CREATE PROCEDURE modificarProveedor(
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `modificarProveedor`(
     IN p_id_proveedor INT,
     IN p_nombre varchar(45),
     OUT nResultado INT,
@@ -484,14 +820,17 @@ BEGIN
         SET nResultado = 0;
         SET cMensaje = 'Modificacion exitosa';
     END IF;
-END 
-// DELIMITER ;
+END$$
 
+DELIMITER ;
 
--- PROVEEDOR_HAS_INSUMO
-DROP PROCEDURE IF EXISTS modificarProveedor_has_insumo;
-DELIMITER //
-CREATE PROCEDURE modificarProveedor_has_insumo(
+-- -----------------------------------------------------
+-- procedure modificarProveedor_has_insumo
+-- -----------------------------------------------------
+
+DELIMITER $$
+USE `mydb`$$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `modificarProveedor_has_insumo`(
     IN p_old_proveedor_id_proveedor INT,
 	IN p_old_insumo_id_insumo INT,
     IN p_nueva_proveedor_id_proveedor INT,
@@ -525,76 +864,10 @@ BEGIN
         SET nResultado = 0;
         SET cMensaje = 'Modificacion exitosa';
     END IF;
-END 
-// DELIMITER ;
+END$$
 
+DELIMITER ;
 
--- *******************************
--- LLAMADAS:
--- *******************************
-
--- CONCESIONARIA:
-SELECT * FROM concesionaria;
--- ALTA
-CALL altaConcesionaria (1, 'Concesionaria Juan', @nResultado, @cMensaje);
-SELECT @nResultado, @cMensaje;
--- BAJAS
- CALL bajaConcesionaria (1, @nResultado, @cMensaje);
- SELECT @nResultado, @cMensaje;
--- MODIFICACIONES
- CALL modificarConcesionaria (1, 'Concesionaria Juan 2', @nResultado, @cMensaje);
- SELECT @nResultado, @cMensaje;
-
--- PEDIDO
-SELECT * FROM pedido;
-SELECT * FROM pedido_has_modelo;
--- ALTA
-CALL altaPedido (1, '2024-09-19 00:30:00', 1, 1, @nResultado, @cMensaje);
-SELECT @nResultado, @cMensaje;
--- BAJAS
-CALL bajaPedido(1, @nResultado, @cMensaje);
-SELECT @nResultado, @cMensaje;
--- MODIFICACIONES 
-CALL modificarPedidoFecha(1, '2024-09-21 10:00:00', 1, 1, @nResultado, @cMensaje);
-SELECT @nResultado, @cMensaje;
-
--- INSUMO:
-SELECT * FROM insumo;
--- ALTA
-CALL altaInsumo (1, 'pintura rosa', @nResultado, @cMensaje);
-SELECT @nResultado, @cMensaje;
--- BAJAS
- CALL bajaInsumo (1, @nResultado, @cMensaje);
- SELECT @nResultado, @cMensaje;
- -- MODIFICACIONES
- CALL modificarInsumo (1, 'pintura verde', @nResultado, @cMensaje);
- SELECT @nResultado, @cMensaje;
-
-
--- PROVEEDOR 
-SELECT * FROM proveedor;
--- ALTA 
-CALL altaProveedor(1,'jose muebles',@nResultado,@cMensaje);
-SELECT @nResultado,@cMensaje;
--- BAJA 
- CALL bajaProveedor (1, @nResultado, @cMensaje);
-  SELECT @nResultado, @cMensaje;
--- MODIFICACIONES
- CALL modificarProveedor (1, 'mercado Libre', @nResultado, @cMensaje);
- SELECT @nResultado, @cMensaje;
-  
-  
-  -- PROVEEDOR_HAS_INSUMO:
-SELECT * FROM proveedor_has_insumo;
-select * from insumo;
-select * from proveedor;
--- ALTA
-CALL altaProveedor_has_insumo (1, 1, @nResultado, @cMensaje);
-SELECT @nResultado, @cMensaje;
--- BAJAS
- CALL bajaProveedor_has_insumo (1, 1, @nResultado, @cMensaje);
- SELECT @nResultado, @cMensaje;
--- MODIFICACIONES
- CALL modificarProveedor_has_insumo (1, 2, 3, 4, @nResultado, @cMensaje);
- SELECT @nResultado, @cMensaje;
- 
+SET SQL_MODE=@OLD_SQL_MODE;
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
